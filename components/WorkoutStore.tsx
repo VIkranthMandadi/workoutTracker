@@ -2,25 +2,37 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Define types for our workout data
-type Set = {
+// Define types for different workout data
+export type Set = {
   reps: number;
   weight: number;
 };
 
-type Exercise = {
+export type Exercise = {
   name: string;
   sets: Set[];
 };
 
-type Workout = {
+export type RunWorkout = {
+  type: 'run';
+  id: string;
+  name: string;
+  date: string;
+  distance: number;
+  duration: number;
+};
+
+export type LiftWorkout = {
+  type: 'lift';
   id: string;
   name: string;
   date: string;
   exercises: Exercise[];
 };
 
-type WorkoutStore = {
+export type Workout = RunWorkout | LiftWorkout;
+
+export type WorkoutStore = {
   workouts: Workout[];
   addWorkout: (workout: Workout) => void;
   removeWorkout: (id: string) => void;
@@ -32,13 +44,13 @@ export const useWorkoutStore = create<WorkoutStore>()(
   persist(
     (set) => ({
       workouts: [],
-      addWorkout: (workout) => 
-        set((state) => ({ 
-          workouts: [workout, ...state.workouts] 
+      addWorkout: (workout) =>
+        set((state) => ({
+          workouts: [workout, ...state.workouts],
         })),
-      removeWorkout: (id) => 
-        set((state) => ({ 
-          workouts: state.workouts.filter((w) => w.id !== id) 
+      removeWorkout: (id) =>
+        set((state) => ({
+          workouts: state.workouts.filter((w) => w.id !== id),
         })),
       clearWorkouts: () => set({ workouts: [] }),
     }),

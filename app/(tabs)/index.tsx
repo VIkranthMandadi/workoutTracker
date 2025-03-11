@@ -8,33 +8,53 @@ import {
   Image,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Dumbbell, History, Plus } from 'lucide-react-native';
+import { Dumbbell, History, Plus, Timer } from 'lucide-react-native';
 import { useWorkoutStore } from '../../components/WorkoutStore';
+import type { Workout } from '../../components/WorkoutStore';
+
+// Define the type for our recent workouts display
+interface RecentWorkoutDisplay {
+  id: string;
+  name: string;
+  date: string;
+  type: 'run' | 'lift';
+  summary: string;
+}
 
 export default function HomeScreen() {
   const { workouts } = useWorkoutStore();
-  const [recentWorkouts, setRecentWorkouts] = useState([]);
+  const [recentWorkouts, setRecentWorkouts] = useState<RecentWorkoutDisplay[]>(
+    []
+  );
 
   const { workoutId } = useLocalSearchParams();
 
   useEffect(() => {
     // Get the 2 most recent workouts
-    if (workouts.length > 0) {
+    if (workouts && workouts.length > 0) {
       setRecentWorkouts(
-        workouts.slice(0, 2).map((workout) => ({
+        workouts.slice(0, 2).map((workout: Workout) => ({
           id: workout.id,
           name: workout.name,
           date: formatRelativeDate(workout.date),
-          exercises: workout.exercises.length,
+          type: workout.type,
+          summary: getWorkoutSummary(workout),
         }))
       );
     }
   }, [workouts]);
 
-  const formatRelativeDate = (dateString: any) => {
+  const getWorkoutSummary = (workout: Workout): string => {
+    if (workout.type === 'run') {
+      return `${workout.distance} miles in ${workout.duration} mins`;
+    }
+    return `${workout.exercises.length} exercises`;
+  };
+
+  const formatRelativeDate = (dateString: string): string => {
     const now = new Date();
     const workoutDate = new Date(dateString);
-    const diffTime = Math.abs(now - workoutDate);
+    const diffTime = Math.abs(now.getTime() - workoutDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays === 0) {
@@ -94,18 +114,28 @@ export default function HomeScreen() {
             <TouchableOpacity
               key={workout.id}
               style={styles.workoutCard}
-              onPress={() => router.push("/history")} // Navigate to the workout details page
+              onPress={() => router.push('/history')}
             >
-              <View style={styles.workoutIconContainer}>
-                <Dumbbell size={24} color="#fff" />
+              <View
+                style={[
+                  styles.workoutIconContainer,
+                  {
+                    backgroundColor:
+                      workout.type === 'run' ? '#2ecc71' : '#3498db',
+                  },
+                ]}
+              >
+                {workout.type === 'run' ? (
+                  <Timer size={24} color="#fff" />
+                ) : (
+                  <Dumbbell size={24} color="#fff" />
+                )}
               </View>
               <View style={styles.workoutInfo}>
                 <Text style={styles.workoutName}>{workout.name}</Text>
                 <Text style={styles.workoutDate}>{workout.date}</Text>
               </View>
-              <Text style={styles.workoutExercises}>
-                {workout.exercises} exercises
-              </Text>
+              <Text style={styles.workoutSummary}>{workout.summary}</Text>
             </TouchableOpacity>
           ))
         ) : (
@@ -244,7 +274,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#777',
   },
-  workoutExercises: {
+  workoutSummary: {
     fontSize: 14,
     color: '#3498db',
     fontWeight: '500',

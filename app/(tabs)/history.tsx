@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,20 +8,40 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { Calendar as CalendarIcon, X, Trash2 } from 'lucide-react-native';
+import {
+  Calendar as CalendarIcon,
+  X,
+  Trash2,
+  Timer,
+  Dumbbell,
+} from 'lucide-react-native';
 import { useWorkoutStore } from '../../components/WorkoutStore';
+import type {
+  Workout,
+  RunWorkout,
+  LiftWorkout,
+} from '../../components/WorkoutStore';
 import { Calendar } from 'react-native-calendars';
+
+type MarkedDates = {
+  [date: string]: {
+    marked?: boolean;
+    dotColor?: string;
+    selected?: boolean;
+    selectedColor?: string;
+  };
+};
 
 export default function HistoryScreen() {
   const { workouts, removeWorkout, clearWorkouts } = useWorkoutStore();
-  const [selectedWorkout, setSelectedWorkout] = useState(null);
+  const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [markedDates, setMarkedDates] = useState({});
-  const [dateWorkouts, setDateWorkouts] = useState([]);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [markedDates, setMarkedDates] = useState<MarkedDates>({});
+  const [dateWorkouts, setDateWorkouts] = useState<Workout[]>([]);
 
   // Format date for display
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
@@ -31,14 +51,14 @@ export default function HistoryScreen() {
   };
 
   // Format date for calendar marking (YYYY-MM-DD)
-  const formatCalendarDate = (dateString) => {
+  const formatCalendarDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toISOString().split('T')[0];
   };
 
   // Create the marked dates object for the calendar
   useEffect(() => {
-    const marked = {};
+    const marked: MarkedDates = {};
 
     workouts.forEach((workout) => {
       const dateStr = formatCalendarDate(workout.date);
@@ -74,12 +94,19 @@ export default function HistoryScreen() {
     }
   }, [selectedDate, workouts]);
 
-  const viewWorkoutDetails = (workout) => {
+  const getWorkoutSummary = (workout: Workout): string => {
+    if (workout.type === 'run') {
+      return `${workout.distance} miles in ${workout.duration} mins`;
+    }
+    return `${workout.exercises.length} exercises`;
+  };
+
+  const viewWorkoutDetails = (workout: Workout) => {
     setSelectedWorkout(workout);
     setModalVisible(true);
   };
 
-  const handleDeleteWorkout = (id) => {
+  const handleDeleteWorkout = (id: string) => {
     Alert.alert(
       'Delete Workout',
       'Are you sure you want to delete this workout?',
@@ -113,8 +140,85 @@ export default function HistoryScreen() {
     );
   };
 
-  const handleDayPress = (day) => {
+  const handleDayPress = (day: { dateString: string }) => {
     setSelectedDate(day.dateString);
+  };
+
+  const renderWorkoutDetails = (workout: Workout) => {
+    if (workout.type === 'run') {
+      return (
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{workout.name}</Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setModalVisible(false)}
+            >
+              <X size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.modalDate}>{formatDate(workout.date)}</Text>
+
+          <View style={styles.runDetails}>
+            <View style={styles.runDetailItem}>
+              <Text style={styles.runDetailLabel}>Distance</Text>
+              <Text style={styles.runDetailValue}>
+                {workout.distance} miles
+              </Text>
+            </View>
+            <View style={styles.runDetailItem}>
+              <Text style={styles.runDetailLabel}>Duration</Text>
+              <Text style={styles.runDetailValue}>{workout.duration} mins</Text>
+            </View>
+            <View style={styles.runDetailItem}>
+              <Text style={styles.runDetailLabel}>Pace</Text>
+              <Text style={styles.runDetailValue}>
+                {(workout.duration / workout.distance).toFixed(2)} min/mile
+              </Text>
+            </View>
+          </View>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.modalContent}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>{workout.name}</Text>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setModalVisible(false)}
+          >
+            <X size={24} color="#333" />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.modalDate}>{formatDate(workout.date)}</Text>
+
+        <ScrollView style={styles.exercisesList}>
+          {workout.exercises.map((exercise, index) => (
+            <View key={index} style={styles.exerciseItem}>
+              <Text style={styles.exerciseName}>{exercise.name}</Text>
+
+              <View style={styles.setsHeader}>
+                <Text style={styles.setHeaderText}>Set</Text>
+                <Text style={styles.setHeaderText}>Reps</Text>
+                <Text style={styles.setHeaderText}>Weight</Text>
+              </View>
+
+              {exercise.sets.map((set, setIndex) => (
+                <View key={setIndex} style={styles.setRow}>
+                  <Text style={styles.setText}>{setIndex + 1}</Text>
+                  <Text style={styles.setText}>{set.reps}</Text>
+                  <Text style={styles.setText}>{set.weight}</Text>
+                </View>
+              ))}
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+    );
   };
 
   return (
@@ -123,7 +227,6 @@ export default function HistoryScreen() {
         <Text style={styles.headerTitle}>Workout Calendar</Text>
       </View>
 
-      {/* Calendar component */}
       <Calendar
         markedDates={markedDates}
         onDayPress={handleDayPress}
@@ -137,7 +240,6 @@ export default function HistoryScreen() {
         }}
       />
 
-      {/* Selected date workouts */}
       <View style={styles.dateWorkoutsContainer}>
         {selectedDate ? (
           <>
@@ -159,13 +261,25 @@ export default function HistoryScreen() {
                     onPress={() => viewWorkoutDetails(workout)}
                   >
                     <View style={styles.workoutCardContent}>
-                      <View style={styles.workoutIconContainer}>
-                        <CalendarIcon size={24} color="#fff" />
+                      <View
+                        style={[
+                          styles.workoutIconContainer,
+                          {
+                            backgroundColor:
+                              workout.type === 'run' ? '#2ecc71' : '#3498db',
+                          },
+                        ]}
+                      >
+                        {workout.type === 'run' ? (
+                          <Timer size={24} color="#fff" />
+                        ) : (
+                          <Dumbbell size={24} color="#fff" />
+                        )}
                       </View>
                       <View style={styles.workoutInfo}>
                         <Text style={styles.workoutName}>{workout.name}</Text>
-                        <Text style={styles.workoutExercises}>
-                          {workout.exercises.length} exercises
+                        <Text style={styles.workoutSummary}>
+                          {getWorkoutSummary(workout)}
                         </Text>
                       </View>
                       <TouchableOpacity
@@ -195,7 +309,6 @@ export default function HistoryScreen() {
         )}
       </View>
 
-      {/* Clear all button */}
       {workouts.length > 0 && (
         <TouchableOpacity
           style={styles.clearAllButton}
@@ -205,7 +318,6 @@ export default function HistoryScreen() {
         </TouchableOpacity>
       )}
 
-      {/* Workout details modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -214,43 +326,7 @@ export default function HistoryScreen() {
       >
         {selectedWorkout && (
           <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{selectedWorkout.name}</Text>
-                <TouchableOpacity
-                  style={styles.closeButton}
-                  onPress={() => setModalVisible(false)}
-                >
-                  <X size={24} color="#333" />
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.modalDate}>
-                {formatDate(selectedWorkout.date)}
-              </Text>
-
-              <ScrollView style={styles.exercisesList}>
-                {selectedWorkout.exercises.map((exercise, index) => (
-                  <View key={index} style={styles.exerciseItem}>
-                    <Text style={styles.exerciseName}>{exercise.name}</Text>
-
-                    <View style={styles.setsHeader}>
-                      <Text style={styles.setHeaderText}>Set</Text>
-                      <Text style={styles.setHeaderText}>Reps</Text>
-                      <Text style={styles.setHeaderText}>Weight</Text>
-                    </View>
-
-                    {exercise.sets.map((set, setIndex) => (
-                      <View key={setIndex} style={styles.setRow}>
-                        <Text style={styles.setText}>{setIndex + 1}</Text>
-                        <Text style={styles.setText}>{set.reps}</Text>
-                        <Text style={styles.setText}>{set.weight}</Text>
-                      </View>
-                    ))}
-                  </View>
-                ))}
-              </ScrollView>
-            </View>
+            {renderWorkoutDetails(selectedWorkout)}
           </View>
         )}
       </Modal>
@@ -320,9 +396,9 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 4,
   },
-  workoutExercises: {
+  workoutSummary: {
     fontSize: 14,
-    color: '#777',
+    color: '#666',
   },
   deleteButton: {
     padding: 10,
@@ -435,5 +511,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     textAlign: 'center',
+  },
+  runDetails: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    padding: 15,
+    marginTop: 15,
+  },
+  runDetailItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  runDetailLabel: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
+  },
+  runDetailValue: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '600',
   },
 });
